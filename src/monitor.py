@@ -4,17 +4,14 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import datetime as dt
 from db_manager import *
+import pickle
+import os.path
 
 def CalculateDownload():
     return psutil.net_io_counters(pernic=True)["Wi-Fi"].bytes_recv / 1024 / 1024 - download_start_point
 
 def CalculateUpload():
     return psutil.net_io_counters(pernic=True)["Wi-Fi"].bytes_sent / 1024 / 1024 - upload_start_point
-
-#def CalculateUsage():
-#    download = psutil.net_io_counters(pernic=True)["Wi-Fi"].bytes_recv / 1024 / 1024 - download_start_point
-#    upload = psutil.net_io_counters(pernic=True)["Wi-Fi"].bytes_recv / 1024 / 1024 - upload_start_point
-#    return download + upload
 
 def animate(i):
     try:
@@ -42,14 +39,21 @@ def animate(i):
 
 
 if __name__ == "__main__":
-    db = Database()
-    download_start_point = psutil.net_io_counters(pernic=True)["Wi-Fi"].bytes_recv / 1024 / 1024
-    upload_start_point = psutil.net_io_counters(pernic=True)["Wi-Fi"].bytes_sent / 1024 / 1024
     data = []
     time_stamps = []
-
+    db = Database(data, time_stamps)
     fig = plt.figure()
     ax1 = plt.subplot(1, 1, 1)
+    filename = "startpoints-"+dt.datetime.today().strftime('%d-%m-%Y')
+
+    if not os.path.isfile(filename):
+        download_start_point = psutil.net_io_counters(pernic=True)["Wi-Fi"].bytes_recv / 1024 / 1024
+        upload_start_point = psutil.net_io_counters(pernic=True)["Wi-Fi"].bytes_sent / 1024 / 1024
+        pickle.dump([download_start_point, upload_start_point], open(filename, "wb"))
+    else:
+        download_start_point = pickle.load(open(filename, "rb"))[0]
+        upload_start_point = pickle.load(open(filename, "rb"))[1]
+        db.ReadData(data, time_stamps)
 
     ani = animation.FuncAnimation(fig, animate, interval = 1000)
     plt.show()
