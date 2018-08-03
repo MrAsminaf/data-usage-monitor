@@ -4,15 +4,23 @@ from dateutil import rrule
 
 class Database:
     def __init__(self, data, time_stamps):
+        # Establish connection with the database
         self.connection = sqlite3.connect('example.db')
+
+        # Set cursor
         self.cursor = self.connection.cursor()
+
+        # Get today's date in appropriate format
         self.date = datetime.today().strftime('%d-%m-%Y')
+
+        # Check if table exist
         self.cursor.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='"+self.date+"';")
         isEmpty = self.cursor.fetchone()
         if(isEmpty[0] == 0):
+            # If not then create one
             self.cursor.execute("CREATE TABLE IF NOT EXISTS '"+str(self.date)+"' (hour TEXT, download REAL, upload REAL)")
         else:
-            # Get time difference in seconds between now and the last record
+            # Else, get time difference in seconds between now and the last record
             diff = self.GetTimeDifference()
 
             # Select last record
@@ -35,13 +43,16 @@ class Database:
             date = datetime(*map(int, ext_prev_time))
             later = date + timedelta(seconds = diff)
 
+            # Add data for every second between now and the last time program was running
             for dt in rrule.rrule(rrule.SECONDLY, dtstart=date, until=later):
                 self.PushData(str(dt.hour)+':'+str(dt.minute)+':'+str(dt.second), prev_download, prev_upload)
 
+    # Push one record to database
     def PushData(self, time, download, upload):
         self.cursor.execute("INSERT INTO '{}' values('{}', {}, {})".format(self.date, time, download, upload))
         self.connection.commit()
 
+    # Read one record from database
     def ReadData(self, data, time_stamps):
         self.cursor.execute("SELECT * FROM '"+self.date+"'")
         rows = self.cursor.fetchall()
@@ -49,6 +60,7 @@ class Database:
             time_stamps.append(row[0])
             data.append(row[1] + row[2])
 
+    # Calculate difference in seconds between now and the last time program was running
     def GetTimeDifference(self):
         self.cursor.execute("SELECT * FROM '"+self.date+"'ORDER BY download DESC LIMIT 1")
         prev_time = self.cursor.fetchone()[0]
